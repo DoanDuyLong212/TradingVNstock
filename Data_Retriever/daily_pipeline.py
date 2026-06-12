@@ -9,7 +9,7 @@ from database_connection import get_connection
 # CONFIG
 # =========================
 
-TODAY_CAL = date.today()
+TODAY_CAL = date.today() - timedelta(days=1)
 TODAY_STR = TODAY_CAL.strftime("%Y-%m-%d")
 
 STOCK_PATH = "Data_Retriever/data/stock_list.csv"
