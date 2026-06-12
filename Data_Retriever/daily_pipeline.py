@@ -2,7 +2,8 @@ import time
 import pandas as pd
 from datetime import date, timedelta
 from vnstock.api.quote import Quote
-from database_connection import get_connection
+from database_connection import get_engine
+from sqlalchemy import text
 
 
 # =========================
@@ -302,19 +303,15 @@ def build_symbol_payload(symbol, local_full, local_yesterday_row, check_df, mark
     }
 
 
-
-
-
-
 def upsert_ohlcv(df: pd.DataFrame):
     if df is None or df.empty:
         return
 
     engine = get_engine()
 
-    query = """
+    query = text("""
     INSERT INTO ohlcv (stock_id, ngay, open, high, low, close, volume)
-    VALUES (%s, %s, %s, %s, %s, %s, %s)
+    VALUES (:stock_id, :Ngay, :open, :high, :low, :close, :volume)
     ON CONFLICT (stock_id, ngay)
     DO UPDATE SET
         open = EXCLUDED.open,
@@ -322,17 +319,10 @@ def upsert_ohlcv(df: pd.DataFrame):
         low = EXCLUDED.low,
         close = EXCLUDED.close,
         volume = EXCLUDED.volume;
-    """
+    """)
 
-    data = df[[
-        "stock_id", "Ngay", "open", "high", "low", "close", "volume"
-    ]].values.tolist()
-
-    with engine.raw_connection() as conn:
-        cur = conn.cursor()
-        cur.executemany(query, data)
-        conn.commit()
-        cur.close()
+    with engine.begin() as conn:
+        conn.execute(query, df.to_dict("records"))
 
 
 # =========================
