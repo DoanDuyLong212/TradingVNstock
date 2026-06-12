@@ -122,10 +122,8 @@ symbols = (
     .str.strip()
     .tolist()
 )
-
 def load_metadata_from_db():
-
-    conn = get_connection()
+    engine = get_engine()
 
     query = """
     SELECT
@@ -139,9 +137,7 @@ def load_metadata_from_db():
     FROM ohlcv
     """
 
-    df = pd.read_sql(query, conn)
-
-    conn.close()
+    df = pd.read_sql(query, engine)
 
     if len(df):
         df["Ngay"] = pd.to_datetime(df["Ngay"]).dt.date
@@ -310,13 +306,11 @@ def build_symbol_payload(symbol, local_full, local_yesterday_row, check_df, mark
 
 
 
-
 def upsert_ohlcv(df: pd.DataFrame):
     if df is None or df.empty:
         return
 
-    conn = get_connection()
-    cur = conn.cursor()
+    engine = get_engine()
 
     query = """
     INSERT INTO ohlcv (stock_id, ngay, open, high, low, close, volume)
@@ -334,11 +328,11 @@ def upsert_ohlcv(df: pd.DataFrame):
         "stock_id", "Ngay", "open", "high", "low", "close", "volume"
     ]].values.tolist()
 
-    cur.executemany(query, data)
-
-    conn.commit()
-    cur.close()
-    conn.close()
+    with engine.raw_connection() as conn:
+        cur = conn.cursor()
+        cur.executemany(query, data)
+        conn.commit()
+        cur.close()
 
 
 # =========================
