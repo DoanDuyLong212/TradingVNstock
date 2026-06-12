@@ -10,14 +10,13 @@ from sqlalchemy import text
 # CONFIG
 # =========================
 
-TODAY_CAL = date.today() - timedelta(days=1)
-TODAY_STR = TODAY_CAL.strftime("%Y-%m-%d")
+CUT_OFF_DATE = date.today() - timedelta(days=1)
+CUT_OFF_STR = CUT_OFF_DATE.strftime("%Y-%m-%d")
 
 STOCK_PATH = "Data_Retriever/data/stock_list.csv"
 
 REQUEST_SLEEP = 0.7
 RETRY_FETCH = 2
-MARKET_LOOKBACK_DAYS = 12
 CHECK_LOOKBACK_DAYS = 12
 
 
@@ -84,35 +83,6 @@ def rows_match(local_row: pd.Series, api_row: pd.Series) -> bool:
 
 
 # =========================
-# MARKET STATUS
-# =========================
-
-def get_market_end_date():
-    start = (TODAY_CAL - timedelta(days=MARKET_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
-
-    try:
-        q = Quote(symbol="VNINDEX", source="KBS")
-        df = q.history(start=start, end=TODAY_STR, interval="1D").copy()
-
-        if df is None or df.empty:
-            return TODAY_CAL - timedelta(days=1), False
-
-        df["Ngay"] = pd.to_datetime(df["time"]).dt.date
-        df = df.drop(columns=["time"])
-
-        market_end_date = df["Ngay"].max()
-        market_open_today = (market_end_date == TODAY_CAL)
-
-        print(f"📈 Market latest date: {market_end_date} | Open today: {market_open_today}")
-
-        return market_end_date, market_open_today
-
-    except Exception as e:
-        print(f"⚠️ Market error: {e}")
-        return TODAY_CAL - timedelta(days=1), False
-
-
-# =========================
 # LOAD DATA
 # =========================
 
@@ -123,6 +93,8 @@ symbols = (
     .str.strip()
     .tolist()
 )
+
+
 def load_metadata_from_db():
     engine = get_engine()
 
@@ -140,23 +112,21 @@ def load_metadata_from_db():
 
     df = pd.read_sql(query, engine)
 
-    if len(df):
+    if not df.empty:
         df["Ngay"] = pd.to_datetime(df["Ngay"]).dt.date
 
     return clean(df)
 
 
-
 def build_df_yesterday(df):
     if df is None or df.empty:
-        return pd.DataFrame(columns=["stock_id","Ngay","open","high","low","close","volume"])
+        return pd.DataFrame(columns=["stock_id", "Ngay", "open", "high", "low", "close", "volume"])
 
     return (
-        df.sort_values(["stock_id","Ngay"])
+        df.sort_values(["stock_id", "Ngay"])
           .drop_duplicates(["stock_id"], keep="last")
           .reset_index(drop=True)
     )
-
 
 
 # =========================
@@ -164,7 +134,7 @@ def build_df_yesterday(df):
 # =========================
 
 def fetch(symbol, start, end):
-    for i in range(RETRY_FETCH):
+    for _ in range(RETRY_FETCH):
         try:
             time.sleep(REQUEST_SLEEP)
 
@@ -182,126 +152,123 @@ def fetch(symbol, start, end):
             return clean(df)
 
         except Exception as e:
-            return None
+            print(f"⚠️ fetch error {symbol}: {e}")
+            continue
+
+    return None
 
 
-def fetch_check(symbol, market_end_date):
-    start = (market_end_date - timedelta(days=CHECK_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
-    end = market_end_date.strftime("%Y-%m-%d")
+def fetch_check(symbol):
+    start = (CUT_OFF_DATE - timedelta(days=CHECK_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
+    end = CUT_OFF_STR
 
     df = fetch(symbol, start, end)
 
     if df is None or df.empty:
         return None
 
-    return df.drop_duplicates(["stock_id","Ngay"]).sort_values("Ngay").tail(2).reset_index(drop=True)
+    return (
+        df.drop_duplicates(["stock_id", "Ngay"])
+          .sort_values("Ngay")
+          .reset_index(drop=True)
+    )
 
 
 # =========================
 # BUILD PAYLOAD
 # =========================
 
-def build_symbol_payload(symbol, local_full, local_yesterday_row, check_df, market_end_date):
-
+def build_symbol_payload(symbol, local_full, check_df):
     full_start = "2000-01-01"
-    full_end = market_end_date.strftime("%Y-%m-%d")
+    full_end = CUT_OFF_STR
 
-    # ❌ FIRST LOAD -> SKIP (không FULL nữa)
     if local_full.empty:
-
-        full_df = fetch(
-            symbol,
-            "2000-01-01",
-            market_end_date.strftime("%Y-%m-%d")
-        )
+        full_df = fetch(symbol, full_start, full_end)
 
         return {
             "symbol": symbol,
             "mode": "FIRST_LOAD",
             "db_df": full_df,
-            "metadata_df": full_df,
-            "check_df": check_df
         }
 
-    if check_df is None or len(check_df) < 2:
+    if check_df is None or check_df.empty:
         return {
             "symbol": symbol,
             "mode": "SKIP",
             "db_df": None,
-            "metadata_df": local_full,
-            "check_df": check_df
         }
-    
-    if local_yesterday_row.empty:
-        full_df = fetch(
-            symbol,
-            "2000-01-01",
-            market_end_date.strftime("%Y-%m-%d")
-        )
 
+    api_cutoff_row = check_df[check_df["Ngay"] == CUT_OFF_DATE].copy()
+    if api_cutoff_row.empty:
         return {
             "symbol": symbol,
-            "mode": "FIRST_LOAD",
-            "db_df": full_df,
-            "metadata_df": full_df,
-            "check_df": check_df
+            "mode": "SKIP",
+            "db_df": None,
         }
 
-    api_yesterday = check_df.iloc[-2]
-    local_yesterday = local_yesterday_row.iloc[0]
+    local_cutoff_row = local_full[local_full["Ngay"] == CUT_OFF_DATE].copy()
 
-    # =========================
-    # ONLY FULL CONDITION
-    # =========================
-    if not rows_match(local_yesterday, api_yesterday):
+    if not local_cutoff_row.empty:
+        if rows_match(local_cutoff_row.iloc[-1], api_cutoff_row.iloc[-1]):
+            return {
+                "symbol": symbol,
+                "mode": "NOOP",
+                "db_df": None,
+            }
 
         full_df = fetch(symbol, full_start, full_end)
-
         if full_df is None or full_df.empty:
             return {
                 "symbol": symbol,
                 "mode": "SKIP",
                 "db_df": None,
-                "metadata_df": local_full,
-                "check_df": check_df
             }
 
         return {
             "symbol": symbol,
             "mode": "FULL",
             "db_df": full_df,
-            "metadata_df": full_df,
-            "check_df": check_df
         }
 
-    # =========================
-    # INCR LOGIC
-    # =========================
-    last_date = local_yesterday["Ngay"]
+    local_latest_date = local_full["Ngay"].max()
 
-    new_rows = check_df[check_df["Ngay"] > last_date].copy()
-    new_rows = clean(new_rows)
+    if local_latest_date < CUT_OFF_DATE:
+        inc_start = (local_latest_date + timedelta(days=1)).strftime("%Y-%m-%d")
+        incr_df = fetch(symbol, inc_start, full_end)
 
-    if new_rows.empty:
+        if incr_df is None or incr_df.empty:
+            return {
+                "symbol": symbol,
+                "mode": "SKIP",
+                "db_df": None,
+            }
+
+        incr_df = incr_df[incr_df["Ngay"] > local_latest_date].copy()
+        incr_df = clean(incr_df)
+
+        if incr_df.empty:
+            return {
+                "symbol": symbol,
+                "mode": "NOOP",
+                "db_df": None,
+            }
+
         return {
             "symbol": symbol,
-            "mode": "NOOP",
-            "db_df": None,
-            "metadata_df": local_full,
-            "check_df": check_df
+            "mode": "INCR",
+            "db_df": incr_df,
         }
-
-    updated = pd.concat([local_full, new_rows], ignore_index=True)
-    updated = clean(updated)
 
     return {
         "symbol": symbol,
-        "mode": "INCR",
-        "db_df": new_rows,
-        "metadata_df": updated,
-        "check_df": check_df
+        "mode": "NOOP",
+        "db_df": None,
     }
 
+
+# =========================
+# UPSERT
+# =========================
 
 def upsert_ohlcv(df: pd.DataFrame):
     if df is None or df.empty:
@@ -309,20 +276,28 @@ def upsert_ohlcv(df: pd.DataFrame):
 
     engine = get_engine()
 
+    df = df.copy()
+    df = df.rename(columns={"Ngay": "ngay"})
+    df["ngay"] = pd.to_datetime(df["ngay"]).dt.date
+
     query = text("""
     INSERT INTO ohlcv (stock_id, ngay, open, high, low, close, volume)
-    VALUES (:stock_id, :Ngay, :open, :high, :low, :close, :volume)
+    VALUES (:stock_id, :ngay, :open, :high, :low, :close, :volume)
     ON CONFLICT (stock_id, ngay)
     DO UPDATE SET
         open = EXCLUDED.open,
         high = EXCLUDED.high,
         low = EXCLUDED.low,
         close = EXCLUDED.close,
-        volume = EXCLUDED.volume;
+        volume = EXCLUDED.volume
     """)
 
+    records = df[[
+        "stock_id", "ngay", "open", "high", "low", "close", "volume"
+    ]].to_dict("records")
+
     with engine.begin() as conn:
-        conn.execute(query, df.to_dict("records"))
+        conn.execute(query, records)
 
 
 # =========================
@@ -330,36 +305,25 @@ def upsert_ohlcv(df: pd.DataFrame):
 # =========================
 
 def run():
-
     print("🚀 START PIPELINE")
+    print(f"📌 CUT_OFF_DATE = {CUT_OFF_DATE}")
 
     metadata = load_metadata_from_db()
-
-    market_end_date, _ = get_market_end_date()
-
     df_yesterday = build_df_yesterday(metadata)
 
     for i, symbol in enumerate(symbols):
-
         local_full = (
             metadata[metadata["stock_id"] == symbol]
             .copy()
             .sort_values("Ngay")
         )
 
-        local_yesterday_row = (
-            df_yesterday[df_yesterday["stock_id"] == symbol]
-            .copy()
-        )
-
-        check_df = fetch_check(symbol, market_end_date)
+        check_df = fetch_check(symbol)
 
         payload = build_symbol_payload(
             symbol,
             local_full,
-            local_yesterday_row,
-            check_df,
-            market_end_date
+            check_df
         )
 
         if payload["db_df"] is not None and not payload["db_df"].empty:
