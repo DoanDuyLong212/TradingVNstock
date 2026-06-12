@@ -12,7 +12,7 @@ from database_connection import get_connection
 TODAY_CAL = date.today()
 TODAY_STR = TODAY_CAL.strftime("%Y-%m-%d")
 
-STOCK_PATH = "data/stock_list.csv"
+STOCK_PATH = "Data_Retriever/data/stock_list.csv"
 
 REQUEST_SLEEP = 0.7
 RETRY_FETCH = 2
