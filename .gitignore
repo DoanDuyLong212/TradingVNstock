@@ -1,0 +1,13 @@
+.env
+
+__pycache__/
+*.pyc
+
+.venv/
+venv/
+
+Data_Retriever/data/metadata.csv
+
+check.ipynb
+
+.ipynb_checkpoints/
