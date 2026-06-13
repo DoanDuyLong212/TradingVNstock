@@ -1,338 +1,388 @@
+import os
 import time
-import pandas as pd
-from datetime import date, timedelta
-from vnstock.api.quote import Quote
+import logging
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from database_connection import get_engine
-from sqlalchemy import text
 
+import pandas as pd
+from sqlalchemy import create_engine, text
+from sqlalchemy.pool import QueuePool
+from dotenv import load_dotenv
+from vnstock import Market, Quote
+
+load_dotenv()
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 # =========================
 # CONFIG
 # =========================
+TABLE_NAME = "ohlcv"   # đổi thành tên bảng thật của bạn
+DATE_COL = "ngay"
+ID_COL = "stock_id"
+COMPARE_COLS = ["open", "high", "low", "close", "volume"]
 
-CUT_OFF_DATE = date.today() - timedelta(days=1)
-CUT_OFF_STR = CUT_OFF_DATE.strftime("%Y-%m-%d")
-
-STOCK_PATH = "Data_Retriever/data/stock_list.csv"
-
-REQUEST_SLEEP = 0.7
-RETRY_FETCH = 2
-CHECK_LOOKBACK_DAYS = 12
+VN_TZ = ZoneInfo("Asia/Bangkok")
 
 
 # =========================
 # HELPERS
 # =========================
+def today_local() -> pd.Timestamp:
+    return pd.Timestamp.now(tz=VN_TZ).normalize()
 
-def clean(df: pd.DataFrame) -> pd.DataFrame:
+
+def to_date_only(series: pd.Series) -> pd.Series:
+    return pd.to_datetime(series, errors="coerce").dt.date
+
+
+def normalize_api_df(df: pd.DataFrame, stock_id: str | None = None) -> pd.DataFrame:
+    """
+    - đổi cột time/date -> ngay
+    - bỏ time component
+    - giữ date dạng Python date
+    - thêm stock_id nếu cần
+    """
     if df is None or df.empty:
-        return df
+        return pd.DataFrame()
 
     df = df.copy()
 
-    numeric_cols = ["open", "high", "low", "close", "volume"]
-    for col in numeric_cols:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
+    # chuẩn hóa tên cột ngày
+    if "time" in df.columns:
+        df = df.rename(columns={"time": DATE_COL})
+    elif "date" in df.columns:
+        df = df.rename(columns={"date": DATE_COL})
+    elif DATE_COL not in df.columns:
+        raise ValueError("Không tìm thấy cột time/date trong dataframe API")
 
-    df = df[[
-        "stock_id", "Ngay",
-        "open", "high", "low", "close", "volume"
-    ]].copy()
+    df[DATE_COL] = to_date_only(df[DATE_COL])
 
-    df = df.drop_duplicates(["stock_id", "Ngay"], keep="last")
-    df = df.sort_values(["stock_id", "Ngay"]).reset_index(drop=True)
+    if stock_id is not None:
+        df[ID_COL] = stock_id
 
+    # bỏ các dòng lỗi ngày
+    df = df.dropna(subset=[DATE_COL])
+
+    # đưa stock_id lên đầu cho dễ nhìn
+    cols = list(df.columns)
+    if ID_COL in cols:
+        cols = [ID_COL] + [c for c in cols if c != ID_COL]
+    if DATE_COL in cols:
+        cols = [DATE_COL] + [c for c in cols if c != DATE_COL]
+    df = df[cols]
+
+    return df.reset_index(drop=True)
+
+
+def load_stock_list(path: str = "data/stock_list.csv") -> list[str]:
+    df = pd.read_csv(path)
+    if "stock_id" not in df.columns:
+        raise ValueError("File stock_list.csv phải có cột stock_id")
+    stock_list = (
+        df["stock_id"]
+        .dropna()
+        .astype(str)
+        .str.strip()
+        .tolist()
+    )
+    # loại trùng
+    return list(dict.fromkeys(stock_list))
+
+
+def get_market_latest_2_days() -> pd.DataFrame:
+    """
+    Lấy 2 ngày mới nhất của VNINDEX để xác định:
+    - hôm nay có giao dịch hay không
+    - ngày giao dịch trước của thị trường là ngày nào
+    """
+    mkt = Market()
+    df_vnindex = mkt.index("VNINDEX").ohlcv(length=2, interval="1D")
+    df_vnindex = normalize_api_df(df_vnindex)
+
+    if df_vnindex.empty or len(df_vnindex) < 2:
+        raise ValueError("Không lấy được đủ 2 ngày dữ liệu VNINDEX")
+
+    df_vnindex = df_vnindex.sort_values(DATE_COL).reset_index(drop=True)
+    return df_vnindex
+
+
+def market_is_open_today(df_vnindex_2days: pd.DataFrame) -> tuple[bool, pd.Timestamp, pd.Timestamp]:
+    """
+    Nếu ngày mới nhất từ API = ngày hôm nay -> có giao dịch hôm nay
+    ngược lại -> hôm nay không giao dịch
+    """
+    latest_market_date = pd.Timestamp(df_vnindex_2days.iloc[-1][DATE_COL])
+    prev_market_date = pd.Timestamp(df_vnindex_2days.iloc[-2][DATE_COL])
+    today = today_local()
+
+    is_trading_today = latest_market_date == today
+    return is_trading_today, latest_market_date, prev_market_date
+
+
+def get_db_latest_dates(engine) -> pd.DataFrame:
+    """
+    Lấy ngày mới nhất trong DB cho từng stock.
+    """
+    sql = text(f"""
+        SELECT {ID_COL}, MAX({DATE_COL}) AS latest_date
+        FROM {TABLE_NAME}
+        GROUP BY {ID_COL}
+        ORDER BY {ID_COL}
+    """)
+    with engine.connect() as conn:
+        df = pd.read_sql(sql, conn)
+    if not df.empty:
+        df[DATE_COL] = pd.to_datetime(df["latest_date"], errors="coerce").dt.date
+        df = df.drop(columns=["latest_date"])
     return df
 
 
-def rows_match(local_row: pd.Series, api_row: pd.Series) -> bool:
-    if pd.isna(local_row["Ngay"]) or pd.isna(api_row["Ngay"]):
-        return False
-
-    if local_row["Ngay"] != api_row["Ngay"]:
-        return False
-
-    for col in ["open", "high", "low", "close"]:
-        a = local_row[col]
-        b = api_row[col]
-
-        if pd.isna(a) and pd.isna(b):
-            continue
-        if pd.isna(a) != pd.isna(b):
-            return False
-
-        try:
-            if abs(float(a) - float(b)) > 1e-6:
-                return False
-        except Exception:
-            return False
-
-    a_vol = local_row["volume"]
-    b_vol = api_row["volume"]
-
-    if pd.isna(a_vol) and pd.isna(b_vol):
-        return True
-    if pd.isna(a_vol) != pd.isna(b_vol):
-        return False
-
-    try:
-        return int(a_vol) == int(b_vol)
-    except Exception:
-        return False
+def get_db_df_by_date(engine, target_date: pd.Timestamp) -> pd.DataFrame:
+    sql = text(f"""
+        SELECT *
+        FROM {TABLE_NAME}
+        WHERE {DATE_COL} = :target_date
+    """)
+    with engine.connect() as conn:
+        df = pd.read_sql(sql, conn, params={"target_date": target_date.date()})
+    return df
 
 
-# =========================
-# LOAD DATA
-# =========================
+def get_db_df_by_stocks(engine, stock_ids: list[str]) -> pd.DataFrame:
+    if not stock_ids:
+        return pd.DataFrame()
 
-symbols = (
-    pd.read_csv(STOCK_PATH)["stock_id"]
-    .dropna()
-    .astype(str)
-    .str.strip()
-    .tolist()
-)
-
-
-def load_metadata_from_db():
-    engine = get_engine()
-
-    query = """
-    SELECT
-        stock_id,
-        ngay AS "Ngay",
-        open,
-        high,
-        low,
-        close,
-        volume
-    FROM ohlcv
-    """
-
-    df = pd.read_sql(query, engine)
-
-    if not df.empty:
-        df["Ngay"] = pd.to_datetime(df["Ngay"]).dt.date
-
-    return clean(df)
+    placeholders = ", ".join([f":s{i}" for i in range(len(stock_ids))])
+    sql = text(f"""
+        SELECT *
+        FROM {TABLE_NAME}
+        WHERE {ID_COL} IN ({placeholders})
+    """)
+    params = {f"s{i}": sid for i, sid in enumerate(stock_ids)}
+    with engine.connect() as conn:
+        df = pd.read_sql(sql, conn, params=params)
+    return df
 
 
-def build_df_yesterday(df):
-    if df is None or df.empty:
-        return pd.DataFrame(columns=["stock_id", "Ngay", "open", "high", "low", "close", "volume"])
-
-    return (
-        df.sort_values(["stock_id", "Ngay"])
-          .drop_duplicates(["stock_id"], keep="last")
-          .reset_index(drop=True)
-    )
-
-
-# =========================
-# FETCH
-# =========================
-
-def fetch(symbol, start, end):
-    for _ in range(RETRY_FETCH):
-        try:
-            time.sleep(REQUEST_SLEEP)
-
-            df = Quote(symbol=symbol, source="KBS").history(
-                start=start, end=end, interval="1D"
-            ).copy()
-
-            if df is None or df.empty:
-                return None
-
-            df["Ngay"] = pd.to_datetime(df["time"]).dt.date
-            df = df.drop(columns=["time"])
-            df["stock_id"] = symbol
-
-            return clean(df)
-
-        except Exception as e:
-            print(f"⚠️ fetch error {symbol}: {e}")
-            continue
-
-    return None
-
-
-def fetch_check(symbol):
-    start = (CUT_OFF_DATE - timedelta(days=CHECK_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
-    end = CUT_OFF_STR
-
-    df = fetch(symbol, start, end)
-
-    if df is None or df.empty:
-        return None
-
-    return (
-        df.drop_duplicates(["stock_id", "Ngay"])
-          .sort_values("Ngay")
-          .reset_index(drop=True)
-    )
-
-
-# =========================
-# BUILD PAYLOAD
-# =========================
-
-def build_symbol_payload(symbol, local_full, check_df):
-    full_start = "2000-01-01"
-    full_end = CUT_OFF_STR
-
-    if local_full.empty:
-        full_df = fetch(symbol, full_start, full_end)
-
-        return {
-            "symbol": symbol,
-            "mode": "FIRST_LOAD",
-            "db_df": full_df,
-        }
-
-    if check_df is None or check_df.empty:
-        return {
-            "symbol": symbol,
-            "mode": "SKIP",
-            "db_df": None,
-        }
-
-    api_cutoff_row = check_df[check_df["Ngay"] == CUT_OFF_DATE].copy()
-    if api_cutoff_row.empty:
-        return {
-            "symbol": symbol,
-            "mode": "SKIP",
-            "db_df": None,
-        }
-
-    local_cutoff_row = local_full[local_full["Ngay"] == CUT_OFF_DATE].copy()
-
-    if not local_cutoff_row.empty:
-        if rows_match(local_cutoff_row.iloc[-1], api_cutoff_row.iloc[-1]):
-            return {
-                "symbol": symbol,
-                "mode": "NOOP",
-                "db_df": None,
-            }
-
-        full_df = fetch(symbol, full_start, full_end)
-        if full_df is None or full_df.empty:
-            return {
-                "symbol": symbol,
-                "mode": "SKIP",
-                "db_df": None,
-            }
-
-        return {
-            "symbol": symbol,
-            "mode": "FULL",
-            "db_df": full_df,
-        }
-
-    local_latest_date = local_full["Ngay"].max()
-
-    if local_latest_date < CUT_OFF_DATE:
-        inc_start = (local_latest_date + timedelta(days=1)).strftime("%Y-%m-%d")
-        incr_df = fetch(symbol, inc_start, full_end)
-
-        if incr_df is None or incr_df.empty:
-            return {
-                "symbol": symbol,
-                "mode": "SKIP",
-                "db_df": None,
-            }
-
-        incr_df = incr_df[incr_df["Ngay"] > local_latest_date].copy()
-        incr_df = clean(incr_df)
-
-        if incr_df.empty:
-            return {
-                "symbol": symbol,
-                "mode": "NOOP",
-                "db_df": None,
-            }
-
-        return {
-            "symbol": symbol,
-            "mode": "INCR",
-            "db_df": incr_df,
-        }
-
-    return {
-        "symbol": symbol,
-        "mode": "NOOP",
-        "db_df": None,
-    }
-
-
-# =========================
-# UPSERT
-# =========================
-
-def upsert_ohlcv(df: pd.DataFrame):
-    if df is None or df.empty:
+def delete_rows_by_stock_ids(engine, stock_ids: list[str]):
+    if not stock_ids:
         return
 
-    engine = get_engine()
-
-    df = df.copy()
-    df = df.rename(columns={"Ngay": "ngay"})
-    df["ngay"] = pd.to_datetime(df["ngay"]).dt.date
-
-    query = text("""
-    INSERT INTO ohlcv (stock_id, ngay, open, high, low, close, volume)
-    VALUES (:stock_id, :ngay, :open, :high, :low, :close, :volume)
-    ON CONFLICT (stock_id, ngay)
-    DO UPDATE SET
-        open = EXCLUDED.open,
-        high = EXCLUDED.high,
-        low = EXCLUDED.low,
-        close = EXCLUDED.close,
-        volume = EXCLUDED.volume
+    placeholders = ", ".join([f":s{i}" for i in range(len(stock_ids))])
+    sql = text(f"""
+        DELETE FROM {TABLE_NAME}
+        WHERE {ID_COL} IN ({placeholders})
     """)
-
-    records = df[[
-        "stock_id", "ngay", "open", "high", "low", "close", "volume"
-    ]].to_dict("records")
-
+    params = {f"s{i}": sid for i, sid in enumerate(stock_ids)}
     with engine.begin() as conn:
-        conn.execute(query, records)
+        conn.execute(sql, params)
+
+
+def delete_rows_by_stock_ids_and_date(engine, stock_ids: list[str], target_date: pd.Timestamp):
+    if not stock_ids:
+        return
+
+    placeholders = ", ".join([f":s{i}" for i in range(len(stock_ids))])
+    sql = text(f"""
+        DELETE FROM {TABLE_NAME}
+        WHERE {ID_COL} IN ({placeholders})
+          AND {DATE_COL} = :target_date
+    """)
+    params = {f"s{i}": sid for i, sid in enumerate(stock_ids)}
+    params["target_date"] = target_date.date()
+    with engine.begin() as conn:
+        conn.execute(sql, params)
+
+
+def insert_df(engine, df: pd.DataFrame):
+    if df is None or df.empty:
+        return
+    df_to_save = df.copy()
+    if DATE_COL in df_to_save.columns:
+        df_to_save[DATE_COL] = pd.to_datetime(df_to_save[DATE_COL], errors="coerce").dt.date
+    with engine.begin() as conn:
+        df_to_save.to_sql(
+            TABLE_NAME,
+            con=conn,
+            if_exists="append",
+            index=False,
+            method="multi",
+            chunksize=1000,
+        )
+
+
+def fetch_2_latest_stock_rows(stock_id: str) -> pd.DataFrame:
+    """
+    Lấy 2 giá trị mới nhất của 1 cổ phiếu.
+    """
+    mkt = Market()
+    df = mkt.equity(stock_id).ohlcv(length=2, interval="1D")
+    return normalize_api_df(df, stock_id=stock_id)
+
+
+def fetch_full_history_stock(stock_id: str, end_date: pd.Timestamp) -> pd.DataFrame:
+    """
+    Tải toàn bộ lịch sử của 1 mã từ 2000-01-01 đến end_date + 1.
+    """
+    end_plus_1 = (end_date + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    df = Quote(symbol=stock_id, source="KBS").history(
+        start="2000-01-01",
+        end=end_plus_1,
+        interval="1D",
+    )
+    df = normalize_api_df(df, stock_id=stock_id)
+    return df
+
+
+def split_compare_today(df_2latest: pd.DataFrame, market_prev_date: pd.Timestamp, market_today: pd.Timestamp):
+    """
+    Tách dataframe 2 ngày thành:
+    - df_compare: ngày nhỏ hơn (yesterday market day)
+    - df_today: ngày lớn hơn (today market day)
+    """
+    if df_2latest.empty:
+        return pd.DataFrame(), pd.DataFrame()
+
+    df_2latest = df_2latest.sort_values([ID_COL, DATE_COL]).reset_index(drop=True)
+
+    df_compare = df_2latest[df_2latest[DATE_COL] == market_prev_date.date()].copy()
+    df_today = df_2latest[df_2latest[DATE_COL] == market_today.date()].copy()
+
+    return df_compare.reset_index(drop=True), df_today.reset_index(drop=True)
+
+
+def compare_compare_and_yesterday(df_compare: pd.DataFrame, df_yesterday: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    So sánh df_compare với df_yesterday theo stock_id và các cột numeric chính.
+    Trả về:
+    - matched_rows
+    - mismatched_stock_ids_df
+    """
+    if df_compare.empty:
+        return pd.DataFrame(), pd.DataFrame(columns=[ID_COL])
+
+    if df_yesterday.empty:
+        mismatched = df_compare[[ID_COL]].drop_duplicates().copy()
+        mismatched["reason"] = "yesterday_missing_in_db"
+        return pd.DataFrame(), mismatched
+
+    # Chỉ giữ các cột có thật trong cả 2 dataframe
+    cols_to_compare = [c for c in COMPARE_COLS if c in df_compare.columns and c in df_yesterday.columns]
+
+    merged = df_compare.merge(
+        df_yesterday[[ID_COL, DATE_COL] + cols_to_compare].drop_duplicates(subset=[ID_COL]),
+        on=ID_COL,
+        how="left",
+        suffixes=("_cmp", "_db"),
+    )
+
+    mismatch_mask = merged[f"{DATE_COL}_db"].isna()
+
+    for col in cols_to_compare:
+        a = merged[f"{col}_cmp"]
+        b = merged[f"{col}_db"]
+
+        # so sánh an toàn cho số thực
+        a_norm = pd.to_numeric(a, errors="coerce").round(6)
+        b_norm = pd.to_numeric(b, errors="coerce").round(6)
+
+        mismatch_mask |= ~(a_norm.fillna(-999999) == b_norm.fillna(-999999))
+
+    matched = merged.loc[~mismatch_mask, [ID_COL]].copy()
+    mismatched = merged.loc[mismatch_mask, [ID_COL]].drop_duplicates().copy()
+    mismatched["reason"] = "value_mismatch_or_missing"
+
+    return matched, mismatched
 
 
 # =========================
-# RUN
+# MAIN PIPELINE
 # =========================
+def run_daily_pipeline():
+    engine = get_engine()
+    stock_list = load_stock_list("data/stock_list.csv")
 
-def run():
-    print("🚀 START PIPELINE")
-    print(f"📌 CUT_OFF_DATE = {CUT_OFF_DATE}")
+    # 1) Lấy 2 ngày mới nhất của thị trường
+    df_vnindex_2days = get_market_latest_2_days()
+    is_trading_today, market_today, market_prev_date = market_is_open_today(df_vnindex_2days)
 
-    metadata = load_metadata_from_db()
-    df_yesterday = build_df_yesterday(metadata)
+    logger.info(f"Market latest date: {market_today.date()}, previous market date: {market_prev_date.date()}")
+    if not is_trading_today:
+        logger.info("Hôm nay thị trường không giao dịch -> dừng pipeline.")
+        return
 
-    for i, symbol in enumerate(symbols):
-        local_full = (
-            metadata[metadata["stock_id"] == symbol]
-            .copy()
-            .sort_values("Ngay")
-        )
+    # 2) Lấy dữ liệu 2 ngày mới nhất của từng mã
+    all_2latest = []
+    for stock_id in stock_list:
+        try:
+            df_2 = fetch_2_latest_stock_rows(stock_id)
+            if not df_2.empty:
+                all_2latest.append(df_2)
+        except Exception as e:
+            logger.warning(f"Lỗi lấy 2 ngày mới nhất của {stock_id}: {e}")
 
-        check_df = fetch_check(symbol)
+    if not all_2latest:
+        logger.warning("Không lấy được dữ liệu nào từ API.")
+        return
 
-        payload = build_symbol_payload(
-            symbol,
-            local_full,
-            check_df
-        )
+    df_2latest = pd.concat(all_2latest, ignore_index=True)
+    df_2latest = df_2latest.drop_duplicates(subset=[ID_COL, DATE_COL]).reset_index(drop=True)
 
-        if payload["db_df"] is not None and not payload["db_df"].empty:
-            upsert_ohlcv(payload["db_df"])
+    # 3) Tách ra df_compare và df_today
+    df_compare, df_today = split_compare_today(df_2latest, market_prev_date, market_today)
 
-        print(f"[{i}] {symbol} -> {payload['mode']}")
+    if df_compare.empty or df_today.empty:
+        logger.warning("Không tách được đủ df_compare / df_today theo 2 ngày thị trường.")
+        return
 
-    print("DONE")
+    # 4) Lấy dữ liệu yesterday từ DB
+    #    Nếu DB đang có ngày market_prev_date thì dùng nó để so sánh
+    df_yesterday = get_db_df_by_date(engine, market_prev_date)
+
+    # 5) So sánh df_compare với df_yesterday
+    matched_df, mismatched_df = compare_compare_and_yesterday(df_compare, df_yesterday)
+
+    matched_ids = matched_df[ID_COL].dropna().astype(str).tolist()
+    mismatched_ids = mismatched_df[ID_COL].dropna().astype(str).tolist()
+
+    logger.info(f"Matched: {len(matched_ids)} | Mismatched: {len(mismatched_ids)}")
+
+    # 6) Với mã khớp: chỉ nạp df_today
+    if matched_ids:
+        df_today_matched = df_today[df_today[ID_COL].astype(str).isin(matched_ids)].copy()
+
+        # tránh trùng ngày hôm nay
+        delete_rows_by_stock_ids_and_date(engine, matched_ids, market_today)
+        insert_df(engine, df_today_matched)
+
+        logger.info(f"Đã insert df_today cho {len(matched_ids)} mã khớp.")
+
+    # 7) Với mã mismatch: tải lại toàn bộ lịch sử và thay thế
+    if mismatched_ids:
+        full_history_rows = []
+        for stock_id in mismatched_ids:
+            try:
+                full_df = fetch_full_history_stock(stock_id, market_today)
+                if not full_df.empty:
+                    full_history_rows.append(full_df)
+            except Exception as e:
+                logger.warning(f"Lỗi tải full history của {stock_id}: {e}")
+
+        if full_history_rows:
+            # xóa toàn bộ dữ liệu cũ của các mã mismatch rồi nạp lại
+            delete_rows_by_stock_ids(engine, mismatched_ids)
+
+            full_history_df = pd.concat(full_history_rows, ignore_index=True)
+            full_history_df = full_history_df.drop_duplicates(subset=[ID_COL, DATE_COL]).reset_index(drop=True)
+
+            insert_df(engine, full_history_df)
+            logger.info(f"Đã reload full history cho {len(mismatched_ids)} mã mismatch.")
+
+    logger.info("Pipeline hoàn tất.")
 
 
 if __name__ == "__main__":
-    run()
+    run_daily_pipeline()
