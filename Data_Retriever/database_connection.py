@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 _engine = None
 
-def get_engine(retries: int = 3, delay: float = 2.0):
+def get_engine(retries: int = 3, delay: float = 1.0):
     global _engine
     if _engine is not None:
         return _engine
