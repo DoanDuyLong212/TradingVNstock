@@ -12,7 +12,10 @@ from database_connection import get_engine
 load_dotenv()
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s"
+)
 
 # =========================
 # CONFIG
@@ -65,7 +68,7 @@ def normalize_api_df(df: pd.DataFrame, stock_id: str | None = None) -> pd.DataFr
     return df[cols].reset_index(drop=True)
 
 
-def load_stock_list(path: str = "data/stock_list.csv") -> list[str]:
+def load_stock_list(path: str = "Data_Retriever/data/stock_list.csv") -> list[str]:
     df = pd.read_csv(path)
     if "stock_id" not in df.columns:
         raise ValueError("File stock_list.csv phải có cột stock_id")
@@ -82,6 +85,7 @@ def load_stock_list(path: str = "data/stock_list.csv") -> list[str]:
 
 def get_market_latest_2_days(mkt: Market) -> pd.DataFrame:
     df_vnindex = mkt.index("VNINDEX").ohlcv(length=2, interval="1D")
+    time.sleep(2)
     df_vnindex = normalize_api_df(df_vnindex)
 
     if df_vnindex.empty or len(df_vnindex) < 2:
@@ -171,14 +175,15 @@ def safe_fetch_2_latest_stock_rows(
     for attempt in range(1, max_retry + 1):
         try:
             df = mkt.equity(stock_id).ohlcv(length=2, interval="1D")
+            time.sleep(2)
             df = normalize_api_df(df, stock_id=stock_id)
 
             if df is not None and not df.empty:
                 logger.info(stock_id)
                 return df
 
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"{stock_id} attempt {attempt}: {e}")
 
         if attempt < max_retry:
             time.sleep(sleep_seconds * attempt)
@@ -202,14 +207,15 @@ def safe_fetch_full_history_stock(
                 end=end_plus_1,
                 interval="1D",
             )
+            time.sleep(2)
             df = normalize_api_df(df, stock_id=stock_id)
 
             if df is not None and not df.empty:
                 logger.info(stock_id)
                 return df
 
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"{stock_id} history attempt {attempt}: {e}")
 
         if attempt < max_retry:
             time.sleep(sleep_seconds * attempt)
@@ -290,8 +296,6 @@ def compare_compare_and_yesterday(
 # MAIN PIPELINE
 # =========================
 def run_daily_pipeline():
-    engine = get_engine()
-    stock_list = load_stock_list("data/stock_list.csv")
     mkt = Market()
 
     # 1) Lấy 2 ngày mới nhất của thị trường
@@ -304,6 +308,9 @@ def run_daily_pipeline():
         return
 
     # 2) Lấy dữ liệu 2 ngày mới nhất của từng mã
+    engine = get_engine()
+    stock_list = load_stock_list("Data_Retriever/data/stock_list.csv")
+
     all_2latest = []
     MAX_RETRY = 3
 
@@ -317,8 +324,6 @@ def run_daily_pipeline():
 
         if not df_2.empty:
             all_2latest.append(df_2)
-
-        time.sleep(1)
 
     if not all_2latest:
         logger.warning("Không lấy được dữ liệu nào từ API.")
@@ -375,8 +380,6 @@ def run_daily_pipeline():
 
             if not full_df.empty:
                 full_history_rows.append(full_df)
-
-            time.sleep(1)
 
         if full_history_rows:
             delete_rows_by_stock_ids(engine, mismatched_ids)

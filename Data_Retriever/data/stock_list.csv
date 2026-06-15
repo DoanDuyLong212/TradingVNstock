@@ -1,170 +1,170 @@
-stock_id,exchange
-HPG,HOSE
-VGC,HOSE
-HT1,HOSE
-DGW,HOSE
-HHS,HOSE
-IMP,HOSE
-NTP,HNX
-FPT,HOSE
-IPA,HNX
-SAS,UPCOM
-CTD,HOSE
-PTB,HOSE
-GEX,HOSE
-QNS,UPCOM
-NT2,HOSE
-VSC,HOSE
-HPA,HOSE
-CII,HOSE
-CRE,HOSE
-DSC,HOSE
-TCX,HOSE
-KLB,HOSE
-VRE,HOSE
-DHT,HNX
-DIG,HOSE
-DDV,UPCOM
-DGC,HOSE
-VDS,HOSE
-VJC,HOSE
-STB,HOSE
-PNJ,HOSE
-NAB,HOSE
-PVI,HNX
-VBB,UPCOM
-PGB,UPCOM
-GEL,HOSE
-PPC,HOSE
-ACB,HOSE
-NKG,HOSE
-GMD,HOSE
-HDB,HOSE
-BVH,HOSE
-TCH,HOSE
-TAL,HOSE
-PVT,HOSE
-SJS,HOSE
-DPR,HOSE
-AGR,HOSE
-DPM,HOSE
-GEE,HOSE
-VHC,HOSE
-DCM,HOSE
-NLG,HOSE
-PLX,HOSE
-HDG,HOSE
-PET,HOSE
-AST,HOSE
-KDH,HOSE
-DHC,HOSE
-BWE,HOSE
-VNM,HOSE
-DPG,HOSE
-PDR,HOSE
-MWG,HOSE
-OIL,UPCOM
-SGP,UPCOM
-PHR,HOSE
-THD,HNX
-PVS,HNX
-DBD,HOSE
-QCG,HOSE
-VND,HOSE
-TCB,HOSE
-DBC,HOSE
-HSG,HOSE
-HUT,HNX
-HCM,HOSE
-EVF,HOSE
-VIB,HOSE
-AAA,HOSE
-HAH,HOSE
-KDC,HOSE
-SSB,HOSE
-SAB,HOSE
-SCS,HOSE
-EIB,HOSE
-FTS,HOSE
-NVL,HOSE
-CEO,HNX
-BVB,UPCOM
-SSI,HOSE
-VIC,HOSE
-MSH,HOSE
-MSR,UPCOM
-ANV,HOSE
-VGI,UPCOM
-VGT,UPCOM
-FRT,HOSE
-SHB,HOSE
-QTP,UPCOM
-ACG,HOSE
-DSE,HOSE
-CSV,HOSE
-DXG,HOSE
-SHS,HNX
-REE,HOSE
-ORS,HOSE
-VTP,HOSE
-TNG,HNX
-BSR,HOSE
-VCB,HOSE
-CTS,HOSE
-VPL,HOSE
-MSB,HOSE
-PC1,HOSE
-PGV,HOSE
-VCK,HOSE
-VAB,HOSE
-HHV,HOSE
-VHM,HOSE
-VPB,HOSE
-VPX,HOSE
-GAS,HOSE
-DNW,UPCOM
-TPB,HOSE
-VCG,HOSE
-PVD,HOSE
-NVB,HNX
-DXS,HOSE
-HDC,HOSE
-CTG,HOSE
-GEG,HOSE
-DVN,UPCOM
-OCB,HOSE
-VIX,HOSE
-LPB,HOSE
-ACV,UPCOM
-TVS,HOSE
-KBC,HOSE
-TVN,UPCOM
-ABB,UPCOM
-CMG,HOSE
-FOX,UPCOM
-SIP,HOSE
-DCL,HOSE
-IDC,HNX
-CHP,HOSE
-ECO,UPCOM
-CTR,HOSE
-POW,HOSE
-HNG,UPCOM
-F88,UPCOM
-VCI,HOSE
-TLG,HOSE
-HAG,HOSE
-HVN,HOSE
-MSN,HOSE
-MVN,UPCOM
-SZC,HOSE
-PAN,HOSE
-PHP,UPCOM
-IJC,HOSE
-KSV,HNX
-VC3,HNX
-CDN,HNX
-GVR,HOSE
-TOS,UPCOM
-NTC,HOSE
-DHG,HOSE
+stock_id,exchange,stock_group,industry_code,industry_name
+GEG,HOSE,VNALL,22.0,Tiện ích
+PNJ,HOSE,VN100,7.0,Bán lẻ
+HHS,HOSE,VNALL,1.0,Bán buôn
+FRT,HOSE,VN100,7.0,Bán lẻ
+QNS,UPCOM,Other,,
+SSB,HOSE,VN30,11.0,Ngân hàng
+PET,HOSE,VNALL,1.0,Bán buôn
+HVN,HOSE,Other,23.0,Vận tải - kho bãi
+KLB,HOSE,Other,11.0,Ngân hàng
+CEO,HNX,Other,3.0,Bất động sản
+NTP,HNX,Other,18.0,SX Nhựa - Hóa chất
+BWE,HOSE,VN100,22.0,Tiện ích
+IJC,HOSE,VNALL,3.0,Bất động sản
+PPC,HOSE,VNALL,22.0,Tiện ích
+NVB,HNX,Other,11.0,Ngân hàng
+ACB,HOSE,VN30,11.0,Ngân hàng
+MSH,HOSE,VNALL,16.0,SX Hàng gia dụng
+CHP,HOSE,VNALL,22.0,Tiện ích
+TVN,UPCOM,Other,,
+HPA,HOSE,Other,12.0,Nông - Lâm - Ngư
+TCX,HOSE,Other,5.0,Chứng khoán
+PGB,UPCOM,Other,,
+MSB,HOSE,VN100,11.0,Ngân hàng
+SGP,UPCOM,Other,,
+DGW,HOSE,VN100,1.0,Bán buôn
+CMG,HOSE,VN100,6.0,Công nghệ và thông tin
+SIP,HOSE,VN100,22.0,Tiện ích
+SSI,HOSE,VN30,5.0,Chứng khoán
+IPA,HNX,Other,29.0,Tài chính khác
+TAL,HOSE,Other,3.0,Bất động sản
+STB,HOSE,VN30,11.0,Ngân hàng
+PVS,HNX,Other,10.0,Khai khoáng
+KBC,HOSE,VN100,3.0,Bất động sản
+VCG,HOSE,VN100,24.0,Xây dựng
+ACV,UPCOM,Other,,
+DHG,HOSE,Other,8.0,Chăm sóc sức khỏe
+MVN,UPCOM,Other,,
+DCM,HOSE,VN100,18.0,SX Nhựa - Hóa chất
+VHC,HOSE,VN100,20.0,Chế biến Thủy sản
+CSV,HOSE,VNALL,18.0,SX Nhựa - Hóa chất
+EVF,HOSE,VN100,11.0,Ngân hàng
+NAB,HOSE,VN100,11.0,Ngân hàng
+SAB,HOSE,VN30,19.0,Thực phẩm - Đồ uống
+ECO,UPCOM,Other,,
+CTD,HOSE,VN100,24.0,Xây dựng
+PVD,HOSE,VN100,10.0,Khai khoáng
+TCH,HOSE,VN100,3.0,Bất động sản
+THD,HNX,Other,24.0,Xây dựng
+PC1,HOSE,VN100,24.0,Xây dựng
+PTB,HOSE,VNALL,26.0,SX Phụ trợ
+VCK,HOSE,Other,5.0,Chứng khoán
+NKG,HOSE,VN100,21.0,Vật liệu xây dựng
+QTP,UPCOM,Other,,
+AAA,HOSE,VNALL,18.0,SX Nhựa - Hóa chất
+TNG,HNX,Other,16.0,SX Hàng gia dụng
+BSR,HOSE,VN30,26.0,SX Phụ trợ
+VPL,HOSE,VN30,25.0,"Dịch vụ lưu trú, ăn uống, giải trí"
+PVT,HOSE,VN100,23.0,Vận tải - kho bãi
+DIG,HOSE,VN100,3.0,Bất động sản
+VBB,UPCOM,Other,,
+SJS,HOSE,VN100,3.0,Bất động sản
+VIC,HOSE,VN30,3.0,Bất động sản
+VCI,HOSE,VN100,5.0,Chứng khoán
+NTC,HOSE,Other,3.0,Bất động sản
+VJC,HOSE,VN30,23.0,Vận tải - kho bãi
+FOX,UPCOM,Other,,
+HT1,HOSE,VN100,21.0,Vật liệu xây dựng
+FTS,HOSE,VN100,5.0,Chứng khoán
+VPX,HOSE,Other,5.0,Chứng khoán
+TLG,HOSE,VNALL,26.0,SX Phụ trợ
+HUT,HNX,Other,24.0,Xây dựng
+TCB,HOSE,VN30,11.0,Ngân hàng
+VND,HOSE,VN100,5.0,Chứng khoán
+SHS,HNX,Other,5.0,Chứng khoán
+TPB,HOSE,VN30,11.0,Ngân hàng
+LPB,HOSE,VN30,11.0,Ngân hàng
+OIL,UPCOM,Other,,
+F88,UPCOM,Other,,
+VRE,HOSE,VN30,3.0,Bất động sản
+MWG,HOSE,VN30,7.0,Bán lẻ
+KSV,HNX,Other,10.0,Khai khoáng
+VPB,HOSE,VN30,11.0,Ngân hàng
+ANV,HOSE,VN100,20.0,Chế biến Thủy sản
+SCS,HOSE,VN100,23.0,Vận tải - kho bãi
+VCB,HOSE,VN30,11.0,Ngân hàng
+QCG,HOSE,VNALL,3.0,Bất động sản
+VHM,HOSE,VN30,3.0,Bất động sản
+CTR,HOSE,VN100,6.0,Công nghệ và thông tin
+DXS,HOSE,VN100,3.0,Bất động sản
+AST,HOSE,VNALL,23.0,Vận tải - kho bãi
+GEE,HOSE,VN100,27.0,Thiết bị điện
+CRE,HOSE,VNALL,3.0,Bất động sản
+VIX,HOSE,VN100,5.0,Chứng khoán
+ABB,UPCOM,Other,,
+VNM,HOSE,VN30,19.0,Thực phẩm - Đồ uống
+DHT,HNX,Other,8.0,Chăm sóc sức khỏe
+GAS,HOSE,VN30,22.0,Tiện ích
+DVN,UPCOM,Other,,
+VAB,HOSE,Other,11.0,Ngân hàng
+TOS,UPCOM,Other,,
+VTP,HOSE,VN100,23.0,Vận tải - kho bãi
+SZC,HOSE,VN100,3.0,Bất động sản
+HHV,HOSE,VN100,24.0,Xây dựng
+DPR,HOSE,VNALL,18.0,SX Nhựa - Hóa chất
+GVR,HOSE,VN30,18.0,SX Nhựa - Hóa chất
+VGI,UPCOM,Other,,
+HAH,HOSE,VNALL,23.0,Vận tải - kho bãi
+CDN,HNX,Other,23.0,Vận tải - kho bãi
+DXG,HOSE,VN100,3.0,Bất động sản
+REE,HOSE,VN100,24.0,Xây dựng
+DBC,HOSE,VN100,19.0,Thực phẩm - Đồ uống
+AGR,HOSE,VNALL,5.0,Chứng khoán
+ORS,HOSE,VNALL,5.0,Chứng khoán
+VIB,HOSE,VN30,11.0,Ngân hàng
+NLG,HOSE,VN100,3.0,Bất động sản
+SHB,HOSE,VN30,11.0,Ngân hàng
+TVS,HOSE,VNALL,5.0,Chứng khoán
+DDV,UPCOM,Other,,
+HDB,HOSE,VN30,11.0,Ngân hàng
+DBD,HOSE,VNALL,8.0,Chăm sóc sức khỏe
+VGC,HOSE,VN100,21.0,Vật liệu xây dựng
+VC3,HNX,Other,3.0,Bất động sản
+IMP,HOSE,VN100,8.0,Chăm sóc sức khỏe
+MSN,HOSE,VN30,19.0,Thực phẩm - Đồ uống
+CII,HOSE,VN100,24.0,Xây dựng
+OCB,HOSE,VN100,11.0,Ngân hàng
+CTG,HOSE,VN30,11.0,Ngân hàng
+DPM,HOSE,VN100,18.0,SX Nhựa - Hóa chất
+DCL,HOSE,VNALL,8.0,Chăm sóc sức khỏe
+ACG,HOSE,Other,26.0,SX Phụ trợ
+POW,HOSE,VN100,22.0,Tiện ích
+PHP,UPCOM,Other,,
+PHR,HOSE,VN100,18.0,SX Nhựa - Hóa chất
+FPT,HOSE,VN30,6.0,Công nghệ và thông tin
+DGC,HOSE,Other,18.0,SX Nhựa - Hóa chất
+NVL,HOSE,VN100,3.0,Bất động sản
+VSC,HOSE,VN100,23.0,Vận tải - kho bãi
+PVI,HNX,Other,2.0,Bảo hiểm
+IDC,HNX,Other,22.0,Tiện ích
+KDC,HOSE,VN100,19.0,Thực phẩm - Đồ uống
+DPG,HOSE,VNALL,24.0,Xây dựng
+PGV,HOSE,Other,22.0,Tiện ích
+NT2,HOSE,VN100,22.0,Tiện ích
+DSC,HOSE,VNALL,5.0,Chứng khoán
+DHC,HOSE,VNALL,26.0,SX Phụ trợ
+MSR,UPCOM,Other,,
+BVB,UPCOM,Other,,
+EIB,HOSE,VN100,11.0,Ngân hàng
+GEX,HOSE,VN100,27.0,Thiết bị điện
+GEL,HOSE,Other,1.0,Bán buôn
+PDR,HOSE,VN100,3.0,Bất động sản
+HNG,UPCOM,Other,,
+KDH,HOSE,VN100,3.0,Bất động sản
+PAN,HOSE,VN100,19.0,Thực phẩm - Đồ uống
+DNW,UPCOM,Other,,
+BVH,HOSE,VN100,2.0,Bảo hiểm
+HAG,HOSE,VN100,12.0,Nông - Lâm - Ngư
+HDG,HOSE,VN100,3.0,Bất động sản
+HCM,HOSE,VN100,5.0,Chứng khoán
+SAS,UPCOM,Other,,
+PLX,HOSE,VN30,1.0,Bán buôn
+HPG,HOSE,VN30,21.0,Vật liệu xây dựng
+GMD,HOSE,VN100,23.0,Vận tải - kho bãi
+VDS,HOSE,VNALL,5.0,Chứng khoán
+CTS,HOSE,VN100,5.0,Chứng khoán
+VGT,UPCOM,Other,,
+HDC,HOSE,VN100,3.0,Bất động sản
+DSE,HOSE,VN100,5.0,Chứng khoán
+HSG,HOSE,VN100,21.0,Vật liệu xây dựng
