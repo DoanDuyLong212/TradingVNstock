@@ -297,6 +297,7 @@ def compare_compare_and_yesterday(
 # =========================
 def run_daily_pipeline():
     mkt = Market()
+    engine = get_engine()
 
     # 1) Lấy 2 ngày mới nhất của thị trường
     df_vnindex_2days = get_market_latest_2_days(mkt)
@@ -306,9 +307,56 @@ def run_daily_pipeline():
     if not is_trading_today:
         logger.info("Hôm nay thị trường không giao dịch -> dừng pipeline.")
         return
+    
+    # Insert phiên mới nhất của VNINDEX
+
+    df_market_today = df_vnindex_2days.tail(1).copy()
+
+    df_market_today["market_id"] = "VNINDEX"
+
+    sql = text("""
+        INSERT INTO market_ohlcv
+        (
+            market_id,
+            ngay,
+            open,
+            high,
+            low,
+            close
+        )
+        VALUES
+        (
+            :market_id,
+            :ngay,
+            :open,
+            :high,
+            :low,
+            :close
+        )
+        ON CONFLICT (market_id, ngay)
+        DO NOTHING
+    """)
+
+    with engine.begin() as conn:
+        conn.execute(
+            sql,
+            df_market_today[
+                [
+                    "market_id",
+                    "ngay",
+                    "open",
+                    "high",
+                    "low",
+                    "close"
+                ]
+            ].to_dict("records")
+        )
+
+    logger.info(
+        f"Inserted market data for {market_today.date()}"
+    )
 
     # 2) Lấy dữ liệu 2 ngày mới nhất của từng mã
-    engine = get_engine()
     stock_list = load_stock_list("Data_Retriever/data/stock_list.csv")
 
     all_2latest = []
