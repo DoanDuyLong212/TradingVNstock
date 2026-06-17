@@ -27,7 +27,7 @@ def save_signals(engine, df_signals):
             model_name
         )
         DO UPDATE SET
-            probability = EXCLUDED.probability,
+            probability = EXCLUDED.probability
     """)
 
     records = []
