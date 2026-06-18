@@ -1,6 +1,11 @@
 import logging
 import os
 import sys
+import warnings
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 
 from backend.connectors.database_connection import get_engine

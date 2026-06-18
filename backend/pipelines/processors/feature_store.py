@@ -1,6 +1,7 @@
 import json
 import pandas as pd
 from upstash_redis import Redis
+from io import StringIO
 
 def save_stock_features(client: Redis, stock_id: str, df: pd.DataFrame):
     """Serialize and save stock price history and features to Redis."""
@@ -25,7 +26,7 @@ def load_stock_features(client: Redis, stock_id: str) -> pd.DataFrame:
     if not raw_data:
         return pd.DataFrame()
     
-    df = pd.read_json(raw_data, orient="records")
+    df = pd.read_json(StringIO(raw_data), orient="records")
     if df.empty:
         return df
         
