@@ -32,6 +32,6 @@ jobs:
           UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL}}
           UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN}}
         run: |
-          python Data_Retriever/daily_pipeline.py
-          python backend/Stock_Filter/pipelines/initialize_cache.py
+          python backend/services/daily_pipeline.py
+          python backend/services/initialize_cache.py
           python backend/services/signal_service.py
