@@ -13,7 +13,7 @@ import pandas as pd
 from vnstock import Reference
 from sqlalchemy import text
 
-from backend.mcp_data.connectors.database_connection import get_engine
+from backend.connectors.database_connection import get_engine
 
 
 def sync_stock_metadata():

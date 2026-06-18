@@ -3,9 +3,9 @@ import os
 import sys
 
 
-from backend.mcp_data.connectors.database_connection import get_engine
-from backend.mcp_data.connectors.redis_client import get_redis_client
-from backend.Stock_Filter.features.feature_updater import update_market_features_store, update_all_stock_features
+from backend.connectors.database_connection import get_engine
+from backend.connectors.redis_client import get_redis_client
+from backend.pipelines.processors.feature_updater import update_market_features_store, update_all_stock_features
 
 logger = logging.getLogger("initialize_cache")
 

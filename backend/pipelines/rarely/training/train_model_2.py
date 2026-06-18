@@ -10,11 +10,11 @@ from sqlalchemy import text
 # Add root directory to sys.path to resolve data_access and features imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from backend.mcp_data.connectors.database_connection import get_engine
-from backend.mcp_data.processors.stock_loader import load_all_stocks
-from backend.mcp_data.processors.market_loader import load_all_market
-from backend.Stock_Filter.features.market_features import build_market_features
-from backend.Stock_Filter.features.stock_features import BreakoutEventEngine, build_features_sepa, apply_sepa_hard_filter
+from backend.connectors.database_connection import get_engine
+from backend.pipelines.processors.stock_loader import load_all_stocks
+from backend.pipelines.processors.market_loader import load_all_market
+from backend.pipelines.processors.market_features import build_market_features
+from backend.pipelines.processors.stock_features import BreakoutEventEngine, build_features_sepa, apply_sepa_hard_filter
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")

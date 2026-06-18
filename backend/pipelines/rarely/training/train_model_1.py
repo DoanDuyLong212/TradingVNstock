@@ -8,10 +8,10 @@ import lightgbm as lgb
 from sklearn.metrics import f1_score, precision_score
 
 
-from backend.mcp_data.connectors.database_connection import get_engine
-from backend.mcp_data.processors.stock_loader import load_all_stocks
-from backend.Stock_Filter.features.market_features import build_market_features
-from backend.Stock_Filter.features.stock_features import BCDFeatureEngine, BCDEventEngine
+from backend.connectors.database_connection import get_engine
+from backend.pipelines.processors.stock_loader import load_all_stocks
+from backend.pipelines.processors.market_features import build_market_features
+from backend.pipelines.processors.stock_features import BCDFeatureEngine, BCDEventEngine
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
