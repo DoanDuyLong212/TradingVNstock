@@ -4,8 +4,8 @@ import pandas as pd
 from datetime import datetime
 
 
-from Data_Retriever.database_connection import get_engine
-from backend.Stock_Filter.data_access.signal_repository import save_signals
+from backend.mcp_data.connectors.database_connection import get_engine
+from backend.mcp_data.processors.signal_repository import save_signals
 
 from backend.Stock_Filter.pipelines.prediction.predict_model_1 import predict_model_1
 from backend.Stock_Filter.pipelines.prediction.predict_model_2 import predict_model_2

@@ -8,8 +8,8 @@ import lightgbm as lgb
 from sklearn.metrics import f1_score, precision_score
 
 
-from Data_Retriever.database_connection import get_engine
-from backend.Stock_Filter.data_access.stock_loader import load_all_stocks
+from backend.mcp_data.connectors.database_connection import get_engine
+from backend.mcp_data.processors.stock_loader import load_all_stocks
 from backend.Stock_Filter.features.market_features import build_market_features
 from backend.Stock_Filter.features.stock_features import BCDFeatureEngine, BCDEventEngine
 

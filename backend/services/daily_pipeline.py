@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from sqlalchemy import text
 from vnstock import Market, Quote
 
-from database_connection import get_engine
+from backend.mcp_data.connectors.database_connection import get_engine
 
 load_dotenv()
 

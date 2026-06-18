@@ -6,8 +6,8 @@ import pandas as pd
 import numpy as np
 
 
-from backend.Stock_Filter.redis_cache.redis_client import get_redis_client
-from backend.Stock_Filter.redis_cache.feature_store import load_stock_features
+from backend.mcp_data.connectors.redis_client import get_redis_client
+from backend.mcp_data.processors.feature_store import load_stock_features
 
 logger = logging.getLogger(__name__)
 
