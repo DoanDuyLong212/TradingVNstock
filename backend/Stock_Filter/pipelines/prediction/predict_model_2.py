@@ -50,39 +50,39 @@ def predict_model_2() -> pd.DataFrame:
             # Model 2 triggers only on Breakout days
             if latest_row.get("is_breakout") == 1:
                 # Apply SEPA hard filters on the latest row
-                cond_dist = latest_row.get("distance_from_52w_high", -999.0) > -0.35
-                cond_rs = latest_row.get("RS_percentile_60d", -999.0) > 0.5
-                cond_depth = latest_row.get("base_depth_percent", -999.0) > -0.4
-                cond_vol = latest_row.get("volatility_compression_ratio", 999.0) < 0.95
+                # cond_dist = latest_row.get("distance_from_52w_high", -999.0) > -0.35
+                # cond_rs = latest_row.get("RS_percentile_60d", -999.0) > 0.5
+                # cond_depth = latest_row.get("base_depth_percent", -999.0) > -0.4
+                # cond_vol = latest_row.get("volatility_compression_ratio", 999.0) < 0.95
                 
-                if cond_dist and cond_rs and cond_depth and cond_vol:
+                # if cond_dist and cond_rs and cond_depth and cond_vol:
                     # Prepare features
-                    feat_dict = {}
-                    for col in feature_cols:
-                        val = latest_row.get(col, np.nan)
-                        # Handle inf values
-                        if val == np.inf or val == -np.inf:
-                            val = np.nan
-                        # Fill with training median if NaN
-                        if pd.isna(val):
-                            val = medians.get(col, 0.0)
-                        feat_dict[col] = [val]
-                        
-                    X_pred = pd.DataFrame(feat_dict)
-                    proba = model.predict_proba(X_pred)[0, 1]
+                feat_dict = {}
+                for col in feature_cols:
+                    val = latest_row.get(col, np.nan)
+                    # Handle inf values
+                    if val == np.inf or val == -np.inf:
+                        val = np.nan
+                    # Fill with training median if NaN
+                    if pd.isna(val):
+                        val = medians.get(col, 0.0)
+                    feat_dict[col] = [val]
                     
-                    logger.info(f"Model 2 prediction for {stock_id} on {latest_row['ngay'].date()}: proba={proba:.4f} (threshold={threshold:.4f})")
-                    
-                    if proba >= threshold:
-                        signals.append({
-                            "stock_id": stock_id,
-                            "ngay": latest_row["ngay"],
-                            "model": "Breakout_SEPA_Model_2",
-                            "probability": proba,
-                            "close": latest_row.get("close"),
-                            "volume": latest_row.get("volume"),
-                            "base_length": latest_row.get("base_length")
-                        })
+                X_pred = pd.DataFrame(feat_dict)
+                proba = model.predict_proba(X_pred)[0, 1]
+                
+                logger.info(f"Model 2 prediction for {stock_id} on {latest_row['ngay'].date()}: proba={proba:.4f} (threshold={threshold:.4f})")
+                
+                if proba >= threshold:
+                    signals.append({
+                        "stock_id": stock_id,
+                        "ngay": latest_row["ngay"],
+                        "model": "Breakout_SEPA_Model_2",
+                        "probability": proba,
+                        "close": latest_row.get("close"),
+                        "volume": latest_row.get("volume"),
+                        "base_length": latest_row.get("base_length")
+                    })
         except Exception as e:
             logger.error(f"Error running model 2 inference on {stock_id}: {e}")
             
