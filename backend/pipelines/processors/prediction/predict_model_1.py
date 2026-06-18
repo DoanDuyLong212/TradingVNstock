@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def predict_model_1() -> pd.DataFrame:
     """Run inference for Model 1 (BCD model) on today's data."""
-    model_path = "backend/Stock_Filter/models/model_1.pkl"
+    model_path = "backend/models/model_1.pkl"
     if not os.path.exists(model_path):
         logger.error(f"Model 1 not found at {model_path}. Please run training script first.")
         return pd.DataFrame()
