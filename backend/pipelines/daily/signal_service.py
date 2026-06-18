@@ -4,11 +4,11 @@ import pandas as pd
 from datetime import datetime
 
 
-from backend.mcp_data.connectors.database_connection import get_engine
-from backend.mcp_data.processors.signal_repository import save_signals
+from backend.connectors.database_connection import get_engine
+from backend.pipelines.processors.signal_repository import save_signals
 
-from backend.Stock_Filter.pipelines.prediction.predict_model_1 import predict_model_1
-from backend.Stock_Filter.pipelines.prediction.predict_model_2 import predict_model_2
+from backend.pipelines.processors.prediction.predict_model_1 import predict_model_1
+from backend.pipelines.processors.prediction.predict_model_2 import predict_model_2
 
 logger = logging.getLogger(__name__)
 

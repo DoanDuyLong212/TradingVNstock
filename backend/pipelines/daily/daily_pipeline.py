@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from sqlalchemy import text
 from vnstock import Market, Quote
 
-from backend.mcp_data.connectors.database_connection import get_engine
+from backend.connectors.database_connection import get_engine
 
 load_dotenv()
 
@@ -68,7 +68,7 @@ def normalize_api_df(df: pd.DataFrame, stock_id: str | None = None) -> pd.DataFr
     return df[cols].reset_index(drop=True)
 
 
-def load_stock_list(path: str = "Data_Retriever/data/stock_list.csv") -> list[str]:
+def load_stock_list(path: str = "backend/pipelines/data/stock_list.csv") -> list[str]:
     df = pd.read_csv(path)
     if "stock_id" not in df.columns:
         raise ValueError("File stock_list.csv phải có cột stock_id")
@@ -357,7 +357,7 @@ def run_daily_pipeline():
     )
 
     # 2) Lấy dữ liệu 2 ngày mới nhất của từng mã
-    stock_list = load_stock_list("Data_Retriever/data/stock_list.csv")
+    stock_list = load_stock_list("backend/pipelines/data/stock_list.csv")
 
     all_2latest = []
     MAX_RETRY = 3
